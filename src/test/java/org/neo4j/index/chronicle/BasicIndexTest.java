@@ -8,9 +8,11 @@ import org.neo4j.graphdb.*;
 import org.neo4j.graphdb.schema.IndexCreator;
 import org.neo4j.graphdb.schema.IndexDefinition;
 import org.neo4j.helpers.collection.IteratorUtil;
+import org.neo4j.io.fs.FileUtils;
 import org.neo4j.test.ImpermanentGraphDatabase;
 import org.neo4j.test.TestGraphDatabaseFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
@@ -102,7 +104,7 @@ public abstract class BasicIndexTest {
 
     @Before
     public void setUp() throws IOException {
-        //FileUtils.deleteRecursively(new File("test-data"));
+        FileUtils.deleteRecursively(new File("test-data"));
         db = (ImpermanentGraphDatabase) new TestGraphDatabaseFactory().newImpermanentDatabase();
         createIndex(DynamicLabel.label("fooint"));
         createIndex(DynamicLabel.label("foolong"));

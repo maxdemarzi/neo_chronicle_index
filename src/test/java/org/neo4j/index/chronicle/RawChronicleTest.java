@@ -20,7 +20,7 @@ public class RawChronicleTest {
         File directory = new File("target/chronicle");
         FileUtils.deleteRecursively(directory);
         directory.mkdirs();
-        File file = new File(directory, "chronicle-index-tree.db" + String.valueOf(1));
+        File file = new File(directory, "chronicle-index-tree.db.test" + String.valueOf(1));
         file.createNewFile();
         ChronicleMapBuilder<Object, long[]> builder = ChronicleMapBuilder.of(Object.class, long[].class);
         map = builder.createPersistedTo(file);
