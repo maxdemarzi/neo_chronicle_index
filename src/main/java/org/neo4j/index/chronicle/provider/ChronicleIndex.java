@@ -1,23 +1,32 @@
 package org.neo4j.index.chronicle.provider;
 
+import net.openhft.chronicle.map.ChronicleMap;
+import net.openhft.chronicle.set.ChronicleSetBuilder;
 import org.neo4j.collection.primitive.PrimitiveLongIterator;
 import org.neo4j.collection.primitive.PrimitiveLongSet;
+import org.neo4j.graphdb.ResourceIterator;
+import org.neo4j.kernel.api.direct.BoundedIterable;
 import org.neo4j.kernel.api.exceptions.index.IndexCapacityExceededException;
 import org.neo4j.kernel.api.index.*;
+import org.neo4j.kernel.impl.api.index.IndexUpdateMode;
+import org.neo4j.kernel.impl.api.index.sampling.NonUniqueIndexSampler;
+import org.neo4j.kernel.impl.api.index.sampling.UniqueIndexSampler;
 import org.neo4j.register.Register;
 
+import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.Map;
+import java.util.*;
 
-public class ChronicleIndex extends IndexAccessor.Adapter implements IndexPopulator, IndexUpdater {
+public class ChronicleIndex implements IndexAccessor, IndexPopulator, IndexUpdater {
 
-    private final Map<Object, long[]> indexData;
+    private final ChronicleMap<Object, long[]> indexData;
+    private final Set<Class> valueTypesInIndex = new HashSet<>();
 
     private InternalIndexState state = InternalIndexState.POPULATING;
+    private NonUniqueIndexSampler nonUniqueIndexSampler = new NonUniqueIndexSampler(1000);
+    private UniqueIndexSampler uniqueIndexSampler = new UniqueIndexSampler();
 
-    public ChronicleIndex(final Map<Object, long[]> map){
+    public ChronicleIndex(final ChronicleMap<Object, long[]> map){
         this.indexData = map;
     }
 
@@ -34,19 +43,27 @@ public class ChronicleIndex extends IndexAccessor.Adapter implements IndexPopula
     public void add(final long nodeId, final Object propertyValue) throws IndexEntryConflictException, IOException, IndexCapacityExceededException {
         long[] nodes = this.indexData.get(propertyValue);
         if (nodes==null || nodes.length==0) {
+            sample(propertyValue);
             this.indexData.put(propertyValue, new long[]{nodeId});
             return;
         }
         final int idx=this.indexOf(nodes,nodeId);
         if (idx!=-1) return;
+        sample(propertyValue);
         nodes = Arrays.copyOfRange(nodes, 0, nodes.length + 1);
         nodes[nodes.length-1]=nodeId;
         this.indexData.put(propertyValue, nodes);
     }
 
+    private void sample(Object propertyValue) {
+        nonUniqueIndexSampler.include(propertyValue.toString());
+        valueTypesInIndex.add(propertyValue.getClass());
+        uniqueIndexSampler.increment(1);
+    }
+
     @Override
     public void verifyDeferredConstraints(PropertyAccessor propertyAccessor) throws Exception {
-
+//        System.out.println("verifyDeferredConstraints" +propertyAccessor);
     }
 
     @Override
@@ -68,15 +85,12 @@ public class ChronicleIndex extends IndexAccessor.Adapter implements IndexPopula
 
     @Override
     public long sampleResult(Register.DoubleLong.Out out) {
-
-        // TODO
-
-        return 0;
+        return uniqueIndexSampler.result(out);
     }
 
     @Override
     public Reservation validate(Iterable<NodePropertyUpdate> iterable) throws IOException, IndexCapacityExceededException {
-        return null;
+        return Reservation.EMPTY;
     }
 
     @Override
@@ -133,6 +147,7 @@ public class ChronicleIndex extends IndexAccessor.Adapter implements IndexPopula
         final int idx=this.indexOf(nodes,nodeId);
         if (idx==-1) return;
         final int existingCount = nodes.length;
+        nonUniqueIndexSampler.exclude(propertyValue.toString());
         if (existingCount == 1) {
             this.indexData.remove(propertyValue);
             return;
@@ -143,14 +158,49 @@ public class ChronicleIndex extends IndexAccessor.Adapter implements IndexPopula
     }
 
     private int indexOf(final long[] nodes, final long nodeId) {
-        for (int i = nodes.length - 1; i != 0; i--) {
+//        if (nodes.length > 256) return Arrays.binarySearch(nodes,nodeId);
+        int end = nodes.length - 1;
+        for (int i = 0; i != end; i++) {
             if (nodes[i]==nodeId) return i;
         }
         return -1;
     }
 
     @Override
+    public IndexUpdater newUpdater(IndexUpdateMode mode) {
+        return this;
+    }
+
+    @Override
     public IndexReader newReader() {
-        return new ChronicleIndexReader((Map<Object, long[]>) this.indexData);
+        return new ChronicleIndexReader(this.indexData,nonUniqueIndexSampler,valueTypesInIndex);
+    }
+
+    @Override
+    public void drop() throws IOException {
+        this.indexData.clear();
+    }
+
+    @Override
+    public void force() throws IOException {
+    }
+
+    @Override
+    public void close() throws IOException {
+//        indexData.close();
+    }
+
+    @Override
+    public BoundedIterable<Long> newAllEntriesReader() {
+        return null;
+    }
+
+    @Override
+    public ResourceIterator<File> snapshotFiles() throws IOException {
+        return (ResourceIterator<File>) ResourceIterator.EMPTY;
+    }
+
+    public void shutdown() {
+        indexData.close();
     }
 }

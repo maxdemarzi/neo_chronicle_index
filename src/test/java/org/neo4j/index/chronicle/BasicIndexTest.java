@@ -7,6 +7,7 @@ import org.junit.Test;
 import org.neo4j.graphdb.*;
 import org.neo4j.graphdb.schema.IndexCreator;
 import org.neo4j.graphdb.schema.IndexDefinition;
+import org.neo4j.graphdb.schema.Schema;
 import org.neo4j.helpers.collection.IteratorUtil;
 import org.neo4j.io.fs.FileUtils;
 import org.neo4j.test.ImpermanentGraphDatabase;
@@ -14,9 +15,12 @@ import org.neo4j.test.TestGraphDatabaseFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
+import static org.neo4j.graphdb.schema.Schema.IndexState.ONLINE;
 
 /**
  * @author mh
@@ -44,6 +48,7 @@ public abstract class BasicIndexTest {
             final Iterable<IndexDefinition> indexes = db.schema().getIndexes(LABEL);
             final IndexDefinition index = IteratorUtil.single(indexes);
             assertEquals(LABEL.name(), index.getLabel().name());
+            assertEquals(ONLINE,db.schema().getIndexState(index));
             tx.success();
         }
         Node node;
@@ -54,6 +59,10 @@ public abstract class BasicIndexTest {
             assertEquals(node, IteratorUtil.single(nodes));
             tx.success();
         }
+        Map<String, Object> params = Collections.<String, Object>singletonMap("prop", 42);
+        String query = String.format("MATCH (n:%1$s {%2$s:{prop}}) USING INDEX n:%1$s(%2$s) RETURN id(n) as id", LABEL.name(), PROPERTY);
+        long id = (Long)db.execute(query, params).columnAs("id").next();
+        assertEquals(node.getId(),id);
     }
 
     @Test

@@ -1,5 +1,6 @@
 package org.neo4j.index.chronicle;
 
+import net.openhft.chronicle.map.ChronicleMap;
 import net.openhft.chronicle.map.ChronicleMapBuilder;
 import org.neo4j.index.chronicle.provider.ChronicleIndex;
 import org.neo4j.io.fs.FileSystemAbstraction;
@@ -37,10 +38,13 @@ public class ChronicleSchemaIndexProvider extends SchemaIndexProvider {
         this.directory = this.getDirectory(config);
     }
 
-    private Map<Object, long[]> getIndexFile(final long indexId) throws IOException {
+    private ChronicleMap<Object, long[]> getIndexFile(final long indexId)  {
         File file = new File(this.directory, "chronicle-index-tree.db" + String.valueOf(indexId));
-        ChronicleMapBuilder<Object, long[]> builder = ChronicleMapBuilder.of(Object.class, long[].class);
-        return builder.createPersistedTo(file);
+        try {
+            return ChronicleMapBuilder.of(Object.class, long[].class).createPersistedTo(file);
+        } catch(IOException ioe) {
+            throw new RuntimeException("Error creating chronicle index id "+indexId+"for file "+file);
+        }
     }
 
     private File getDirectory(final Config config) {
@@ -53,14 +57,7 @@ public class ChronicleSchemaIndexProvider extends SchemaIndexProvider {
 
     @Override
     public IndexPopulator getPopulator(long indexId, IndexDescriptor indexDescriptor, IndexConfiguration indexConfiguration, IndexSamplingConfig indexSamplingConfig) {
-        Map<Object,long[]> map;
-        try {
-            map = this.getIndexFile(indexId);
-        } catch (IOException e) {
-            e.printStackTrace();
-            map = null;
-        }
-        final ChronicleIndex index = new ChronicleIndex(map);
+        final ChronicleIndex index = new ChronicleIndex(getIndexFile(indexId));
         this.indexes.put(indexId, index);
         return index;
     }
@@ -97,5 +94,13 @@ public class ChronicleSchemaIndexProvider extends SchemaIndexProvider {
             }
         } );
 
+    }
+
+    @Override
+    public void shutdown() throws Throwable {
+        for (ChronicleIndex chronicleIndex : indexes.values()) {
+            chronicleIndex.shutdown();
+        }
+        super.shutdown();
     }
 }
