@@ -15,6 +15,7 @@
         <neo4j.version>2.2.1</neo4j.version>
         <chronicle.version>2.1.6</chronicle.version>
         <junit.version>4.11</junit.version>
+        <jmh.version>1.9.1</jmh.version>
         <maven-compiler-plugin.version>3.1</maven-compiler-plugin.version>
         <maven-assembly-plugin.version>2.4</maven-assembly-plugin.version>
         <maven-resources-plugin.version>2.6</maven-resources-plugin.version>
@@ -69,6 +70,21 @@
             <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.openjdk.jmh</groupId>
+            <artifactId>jmh-core</artifactId>
+            <version>${jmh.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.openjdk.jmh</groupId>
+            <artifactId>jmh-generator-annprocess</artifactId>
+            <version>${jmh.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-nop</artifactId>
+            <version>1.7.12</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -114,8 +130,6 @@
                     <argLine>-server -d64 -Xms1G -Xmx8G -XX:NewRatio=5
                         -XX:+UseConcMarkSweepGC -XX:+UseParNewGC
                         -XX:ParallelCMSThreads=4 -XX:+CMSParallelRemarkEnabled
-                        -XX:+CMSIncrementalMode -XX:+CMSIncrementalPacing
-                        -XX:CMSIncrementalDutyCycle=10 -XX:CMSFullGCsBeforeCompaction=1
                     </argLine>
                 </configuration>
                 <executions>

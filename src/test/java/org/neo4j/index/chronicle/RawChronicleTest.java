@@ -52,7 +52,6 @@ public class RawChronicleTest {
             for (int i = 0; i < COUNT; i++) {
                 map.put(propertyValue.from(i), new long[]{i});
             }
-
         }
         time = System.currentTimeMillis() - time;
         final String type = propertyValue.from(0).getClass().getSimpleName();

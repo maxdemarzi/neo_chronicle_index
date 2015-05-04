@@ -7,7 +7,6 @@ import org.junit.Test;
 import org.neo4j.graphdb.*;
 import org.neo4j.graphdb.schema.IndexCreator;
 import org.neo4j.graphdb.schema.IndexDefinition;
-import org.neo4j.graphdb.schema.Schema;
 import org.neo4j.helpers.collection.IteratorUtil;
 import org.neo4j.io.fs.FileUtils;
 import org.neo4j.test.ImpermanentGraphDatabase;
@@ -36,11 +35,6 @@ public abstract class BasicIndexTest {
     protected static final int RUNS = 1;
     protected ImpermanentGraphDatabase db;
     protected IndexDefinition indexDefinition;
-
-    @Test
-    public void testNothing() {
-        System.out.println("did nothing");
-    }
 
     @Test
     public void testCreateAddIndex() throws Exception {
